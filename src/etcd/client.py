@@ -25,6 +25,7 @@ try:
 except ImportError:
     from urllib.parse import urlparse
 
+from .result import EtcdResult
 
 _log = logging.getLogger(__name__)
 
@@ -55,7 +56,8 @@ class Client(object):
             allow_reconnect=False,
             use_proxies=False,
             expected_cluster_id=None,
-            per_host_pool_size=10
+            per_host_pool_size=10,
+            result_class=EtcdResult
     ):
         """
         Initialize the client.
@@ -97,10 +99,14 @@ class Client(object):
             per_host_pool_size (int): specifies maximum number of connections to pool
                                       by host. By default this will use up to 10
                                       connections.
+
+            result_class (EtcdResult subclass): class used for resulting nodes,
+                                                default to EtcdResult
         """
         _log.debug("New etcd client created for %s:%s%s",
                   host, port, version_prefix)
         self._protocol = protocol
+        self._result_class = result_class
 
         def uri(protocol, host, port):
             return '%s://%s:%d' % (protocol, host, port)
@@ -690,7 +696,7 @@ class Client(object):
         """ Creates an EtcdResult from json dictionary """
         try:
             res = json.loads(response.data.decode('utf-8'))
-            r = etcd.EtcdResult(**res)
+            r = self._result_class(**res)
             if response.status == 201:
                 r.newKey = True
             r.parse_headers(response)
